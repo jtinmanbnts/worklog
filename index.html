@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Work Log</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #eeede9;
+    --text: #1a1a1a;
+    --text2: #666660;
+    --text3: #999994;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --radius: 8px;
+    --radius-lg: 12px;
+    --amber-bg: #FAEEDA;
+    --amber-text: #633806;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #252523;
+      --bg3: #2e2e2b;
+      --text: #f0efe9;
+      --text2: #a0a09a;
+      --text3: #666660;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.2);
+      --amber-bg: #412402;
+      --amber-text: #FAC775;
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); min-height: 100vh; color: var(--text); }
+
+  /* PASSWORD GATE */
+  #gate { position: fixed; inset: 0; background: var(--bg3); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .gate-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; width: 320px; }
+  .gate-card h2 { font-size: 18px; font-weight: 500; margin-bottom: 6px; }
+  .gate-card p { font-size: 13px; color: var(--text2); margin-bottom: 1.25rem; }
+  .gate-card input { width: 100%; padding: 9px 12px; font-size: 14px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); margin-bottom: 10px; }
+  .gate-card input:focus { outline: none; border-color: var(--border2); }
+  .gate-error { font-size: 12px; color: #c0392b; margin-top: 6px; min-height: 16px; }
+
+  /* APP */
+  #app { display: none; max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.25rem; }
+  .header h1 { font-size: 20px; font-weight: 500; }
+  .streak { font-size: 13px; color: var(--text3); }
+  .tabs { display: flex; border-bottom: 0.5px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; }
+  .tab { font-size: 13px; padding: 8px 14px; border: none; background: none; cursor: pointer; color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+  .tab.active { color: var(--text); font-weight: 500; border-bottom-color: var(--text); }
+  .section { display: none; }
+  .section.active { display: block; }
+  textarea, input[type=text], input[type=email] { font-family: inherit; font-size: 14px; background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); color: var(--text); padding: 10px 12px; width: 100%; }
+  textarea { resize: vertical; line-height: 1.6; }
+  textarea:focus, input:focus { outline: none; border-color: var(--border2); }
+  textarea::placeholder, input::placeholder { color: var(--text3); }
+  select { font-family: inherit; font-size: 13px; padding: 7px 10px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); cursor: pointer; }
+  .label { font-size: 12px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  .sublabel { font-size: 13px; color: var(--text2); margin-bottom: 12px; line-height: 1.5; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 13px; font-weight: 500; border: 0.5px solid var(--border2); border-radius: var(--radius); cursor: pointer; background: var(--bg); color: var(--text); transition: background 0.1s; }
+  .btn:hover { background: var(--bg2); }
+  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn.primary:hover { opacity: 0.85; }
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+  .divider { height: 0.5px; background: var(--border); margin: 1.25rem 0; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 10px; }
+  .loading { color: var(--text3); font-size: 14px; font-style: italic; padding: 0.75rem 0; }
+  .empty { color: var(--text3); font-size: 14px; padding: 2rem 0; text-align: center; }
+  .rec-box { background: var(--bg2); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-top: 14px; font-size: 14px; color: var(--text); line-height: 1.7; white-space: pre-wrap; }
+  .priority-panel { background: var(--bg2); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+  .priority-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .priority-panel-title { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text2); }
+  .priority-item { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
+  .priority-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .priority-item input[type=checkbox] { margin-top: 3px; flex-shrink: 0; cursor: pointer; accent-color: var(--text); }
+  .priority-item label { font-size: 13px; color: var(--text); line-height: 1.5; cursor: pointer; }
+  .priority-item.done label { color: var(--text3); text-decoration: line-through; }
+  .entry-date { font-size: 12px; color: var(--text3); margin-bottom: 8px; }
+  .entry-body { font-size: 14px; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+  .entry-recs { margin-top: 10px; padding-top: 10px; border-top: 0.5px solid var(--border); font-size: 13px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; }
+  .star-badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--amber-bg); color: var(--amber-text); margin-top: 8px; margin-right: 4px; }
+  .newsletter-box { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-top: 14px; font-size: 14px; color: var(--text); line-height: 1.8; white-space: pre-wrap; }
+  .copy-row { display: flex; gap: 8px; margin-top: 10px; }
+  .notice { font-size: 12px; color: var(--text3); margin-top: 6px; line-height: 1.5; }
+  .save-msg { font-size: 13px; color: var(--text3); }
+  .add-row { display: flex; gap: 8px; margin-top: 6px; }
+  .add-row input { flex: 1; }
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="gate">
+  <div class="gate-card">
+    <h2>Work log</h2>
+    <p>Enter your password to continue.</p>
+    <input type="password" id="pw-input" placeholder="Password" onkeydown="if(event.key==='Enter')checkPw()" />
+    <button class="btn primary" style="width:100%" onclick="checkPw()">Unlock</button>
+    <div class="gate-error" id="pw-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="header">
+    <h1>Work log</h1>
+    <span id="streak-line" class="streak"></span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('log')">Log</button>
+    <button class="tab" onclick="switchTab('priorities')">This week</button>
+    <button class="tab" onclick="switchTab('history')">History</button>
+    <button class="tab" onclick="switchTab('friday')">Friday newsletter</button>
+    <button class="tab" onclick="switchTab('remind')">Reminders</button>
+  </div>
+
+  <!-- LOG -->
+  <div id="tab-log" class="section active">
+    <div id="log-priority-panel"></div>
+    <div class="label">Brain dump</div>
+    <div class="sublabel">Everything on your mind — what you worked on, what's stuck, what's coming up.</div>
+    <textarea id="dump-input" style="min-height:180px;" placeholder="e.g. Spent most of the day on portal nav with Won Jong, still need to finish the personalization brief for Rachel, got pulled into an unplanned Polaris review, feeling behind on the AI concierge concept..."></textarea>
+    <div class="btn-row">
+      <button class="btn primary" onclick="getPriorities()">Get recommendations</button>
+      <button class="btn" onclick="saveRaw()">Just save</button>
+      <span id="save-msg" class="save-msg"></span>
+    </div>
+    <div id="priority-output"></div>
+    <div id="save-after-recs" style="display:none;">
+      <div class="divider"></div>
+      <div class="sublabel">Save this entry and pin these as your active priorities for the week?</div>
+      <div class="btn-row">
+        <button class="btn primary" onclick="saveWithRecs()">Save + pin priorities</button>
+        <button class="btn" onclick="saveRecsOnly()">Save without pinning</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- THIS WEEK -->
+  <div id="tab-priorities" class="section">
+    <div class="label">Active priorities</div>
+    <div class="sublabel">Pinned from your latest brain dump. Check off as you make progress.</div>
+    <div id="full-priority-panel"></div>
+    <div class="divider"></div>
+    <div class="label">Add a priority manually</div>
+    <div class="add-row">
+      <input type="text" id="manual-priority" placeholder="e.g. Finish personalization brief for Rachel" onkeydown="if(event.key==='Enter')addManualPriority()" />
+      <button class="btn" onclick="addManualPriority()">Add</button>
+    </div>
+    <div class="btn-row" style="margin-top:16px;">
+      <button class="btn" onclick="clearDonePriorities()">Clear completed</button>
+      <button class="btn" onclick="clearAllPriorities()">Reset week</button>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="tab-history" class="section">
+    <div id="history-list"><div class="empty">No entries yet.</div></div>
+  </div>
+
+  <!-- FRIDAY NEWSLETTER -->
+  <div id="tab-friday" class="section">
+    <div class="label">Friday newsletter</div>
+    <div class="sublabel">A polished, first-person update ready to send to your manager and leadership. Highlights wins, how you handled challenges, and your Director-level impact.</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px;">
+      <select id="synth-range">
+        <option value="7">Last 7 days</option>
+        <option value="14">Last 14 days</option>
+      </select>
+      <button class="btn primary" onclick="runNewsletter()">Generate newsletter</button>
+    </div>
+    <div id="newsletter-output"></div>
+  </div>
+
+  <!-- REMINDERS -->
+  <div id="tab-remind" class="section">
+    <div class="label">Email reminders</div>
+    <div class="sublabel">Send yourself a recurring reminder every 3 days to keep entries fresh.</div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <input type="email" id="reminder-email" placeholder="your@email.com" style="flex:1;" />
+      <button class="btn" onclick="openReminder()">Open in mail</button>
+    </div>
+    <p class="notice">Opens a pre-filled email. For recurring reminders, add a repeating calendar event every 3 days with a link back to this page.</p>
+    <div style="margin-top:20px;">
+      <div class="label">Calendar event text</div>
+      <div class="card" style="margin-top:8px;font-size:14px;line-height:1.6;color:var(--text);">Work log check-in — open your work log, do a brain dump, get your priorities for the next few days.</div>
+      <button class="btn" style="margin-top:8px;" onclick="copyCalText()" id="copy-cal-btn">Copy text</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'worklog-v3-entries';
+const PRIORITY_KEY = 'worklog-v3-priorities';
+const PW_HASH = '8c3c8e9be3c8b52b0a33b72d7f6c6a3e3c8b1a3c8e7b2c3d4e5f6a7b8c9d0e1f'; // placeholder
+
+function checkPw() {
+  const val = document.getElementById('pw-input').value;
+  if (val === 'blackcoffee') {
+    sessionStorage.setItem('wl_auth', '1');
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadAll();
+  } else {
+    document.getElementById('pw-error').textContent = 'Incorrect password.';
+    document.getElementById('pw-input').value = '';
+  }
+}
+
+// Check session on load
+window.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem('wl_auth') === '1') {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadAll();
+  }
+  document.getElementById('pw-input').focus();
+});
+
+let entries = [];
+let priorities = [];
+let pendingRecs = '';
+let pendingPriorityItems = [];
+
+function loadAll() {
+  try { const r = localStorage.getItem(STORAGE_KEY); if (r) entries = JSON.parse(r); } catch(e) { entries = []; }
+  try { const r = localStorage.getItem(PRIORITY_KEY); if (r) priorities = JSON.parse(r); } catch(e) { priorities = []; }
+  updateStreak(); renderHistory(); renderPriorityPanel(); renderFullPriorityPanel();
+}
+
+function persistEntries() { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+function persistPriorities() { localStorage.setItem(PRIORITY_KEY, JSON.stringify(priorities)); }
+
+function switchTab(name) {
+  const names = ['log','priorities','history','friday','remind'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i] === name));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+function updateStreak() {
+  const el = document.getElementById('streak-line');
+  if (!entries.length) { el.textContent = 'No entries yet'; return; }
+  const days = Math.floor((Date.now() - new Date(entries[0].date).getTime()) / 86400000);
+  el.textContent = days === 0 ? 'Last entry: today' : days === 1 ? 'Last entry: yesterday' : `Last entry: ${days}d ago`;
+}
+
+function renderPriorityPanel() {
+  const el = document.getElementById('log-priority-panel');
+  const active = priorities.filter(p => !p.done);
+  if (!active.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="priority-panel">
+    <div class="priority-panel-header">
+      <span class="priority-panel-title">This week's priorities</span>
+      <span style="font-size:12px;color:var(--text3);">${priorities.filter(p=>p.done).length}/${priorities.length} done</span>
+    </div>
+    ${active.map(p => `<div class="priority-item" id="pi-log-${p.id}">
+      <input type="checkbox" id="cb-log-${p.id}" onchange="togglePriority('${p.id}')"/>
+      <label for="cb-log-${p.id}">${p.text}</label>
+    </div>`).join('')}
+  </div>`;
+}
+
+function renderFullPriorityPanel() {
+  const el = document.getElementById('full-priority-panel');
+  if (!priorities.length) { el.innerHTML = '<div class="empty" style="padding:1rem 0;">No priorities pinned yet. Do a brain dump on the Log tab to get started.</div>'; return; }
+  el.innerHTML = `<div class="priority-panel" style="margin-bottom:0;">
+    ${priorities.map(p => `<div class="priority-item${p.done?' done':''}" id="pi-full-${p.id}">
+      <input type="checkbox" id="cb-full-${p.id}" ${p.done?'checked':''} onchange="togglePriority('${p.id}')"/>
+      <label for="cb-full-${p.id}">${p.text}</label>
+    </div>`).join('')}
+  </div>`;
+}
+
+function togglePriority(id) {
+  const p = priorities.find(p => p.id === id);
+  if (p) { p.done = !p.done; persistPriorities(); renderPriorityPanel(); renderFullPriorityPanel(); }
+}
+
+function addManualPriority() {
+  const input = document.getElementById('manual-priority');
+  const text = input.value.trim();
+  if (!text) return;
+  priorities.push({ id: Date.now().toString(), text, done: false, source: 'manual' });
+  persistPriorities();
+  input.value = '';
+  renderPriorityPanel(); renderFullPriorityPanel();
+}
+
+function clearDonePriorities() {
+  priorities = priorities.filter(p => !p.done);
+  persistPriorities(); renderPriorityPanel(); renderFullPriorityPanel();
+}
+
+function clearAllPriorities() {
+  if (!confirm('Reset all priorities for this week?')) return;
+  priorities = [];
+  persistPriorities(); renderPriorityPanel(); renderFullPriorityPanel();
+}
+
+async function getPriorities() {
+  const text = document.getElementById('dump-input').value.trim();
+  if (!text) return;
+  document.getElementById('priority-output').innerHTML = '<div class="loading">Reading your dump...</div>';
+  document.getElementById('save-after-recs').style.display = 'none';
+
+  const activePrios = priorities.filter(p => !p.done).map(p => p.text);
+  const prioContext = activePrios.length ? `\n\nJon's active priorities this week:\n${activePrios.map((p,i)=>`${i+1}. ${p}`).join('\n')}` : '';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': '', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: `You are a strategic thinking partner for Jon, Associate Director of Experience Design at Bounteous, working toward Director promotion. Dual role: CX Innovation Studio lead (strategic research/prototypes for senior Verizon leadership) and XD lead on Polaris track (portal navigation, package/upgrade flows, churn reduction). Key workstreams: portal personalization, AI nudges/concierge, enterprise scaling. Key contacts: Rachel Vann (Director XD, Verizon) and Won Jong Lee (Principal XD, Velocity Enterprise AI). Upcoming senior Verizon leadership meeting.
+
+Given Jon's brain dump, respond in plain text with these sections:
+
+WHAT MOVED THE NEEDLE: 1-2 sentences on signal vs. noise from today.
+PRIORITY DRIFT: If he had active priorities, call out honestly whether he's tracking or drifting. Skip if none.
+TOP 3 FOR NEXT FEW DAYS: Numbered, ordered by impact toward promotion and leadership meeting. Specific and actionable.
+DIRECTOR-LEVEL OPPORTUNITY: One thing he might be underselling or could elevate. Use ★ if strong.
+
+Be direct and specific. No filler.`,
+        messages: [{ role: 'user', content: `Brain dump:\n${text}${prioContext}` }]
+      })
+    });
+    const data = await res.json();
+    const recs = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+    pendingRecs = recs;
+    pendingPriorityItems = extractPriorities(recs);
+    document.getElementById('priority-output').innerHTML = `<div class="rec-box">${recs}</div>`;
+    document.getElementById('save-after-recs').style.display = 'block';
+  } catch(err) {
+    document.getElementById('priority-output').innerHTML = '<div class="loading">Error — check your connection and try again.</div>';
+  }
+}
+
+function extractPriorities(recs) {
+  const lines = recs.split('\n');
+  const items = [];
+  let inSection = false;
+  for (const line of lines) {
+    if (line.toUpperCase().includes('TOP 3')) { inSection = true; continue; }
+    if (inSection && /^\d[\.\)]/.test(line.trim())) items.push(line.replace(/^\d[\.\)]\s*/, '').trim());
+    else if (inSection && items.length >= 3) break;
+    else if (inSection && line.match(/^[A-Z][A-Z\s\-:]{5,}/) && items.length) break;
+  }
+  return items.slice(0, 3);
+}
+
+function saveRaw() {
+  const text = document.getElementById('dump-input').value.trim();
+  if (!text) return;
+  entries.unshift({ id: Date.now(), date: new Date().toISOString(), body: text, recs: '' });
+  persistEntries();
+  clearForm('Saved');
+}
+
+function saveWithRecs() {
+  const text = document.getElementById('dump-input').value.trim();
+  if (!text) return;
+  entries.unshift({ id: Date.now(), date: new Date().toISOString(), body: text, recs: pendingRecs });
+  if (pendingPriorityItems.length) {
+    priorities = priorities.filter(p => p.source === 'manual');
+    pendingPriorityItems.forEach((t,i) => priorities.push({ id: (Date.now()+i).toString(), text: t, done: false, source: 'auto' }));
+    persistPriorities();
+  }
+  persistEntries();
+  clearForm('Saved + priorities pinned');
+}
+
+function saveRecsOnly() {
+  const text = document.getElementById('dump-input').value.trim();
+  if (!text) return;
+  entries.unshift({ id: Date.now(), date: new Date().toISOString(), body: text, recs: pendingRecs });
+  persistEntries();
+  clearForm('Saved');
+}
+
+function clearForm(msg) {
+  document.getElementById('dump-input').value = '';
+  document.getElementById('priority-output').innerHTML = '';
+  document.getElementById('save-after-recs').style.display = 'none';
+  pendingRecs = ''; pendingPriorityItems = [];
+  const sm = document.getElementById('save-msg');
+  sm.textContent = msg;
+  setTimeout(() => sm.textContent = '', 3000);
+  updateStreak(); renderHistory(); renderPriorityPanel(); renderFullPriorityPanel();
+}
+
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  if (!entries.length) { el.innerHTML = '<div class="empty">No entries yet.</div>'; return; }
+  el.innerHTML = entries.map(e => {
+    const d = new Date(e.date);
+    const ds = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) + ' · ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    const star = e.recs && e.recs.includes('★') ? '<span class="star-badge">★ director-level flagged</span>' : '';
+    const recs = e.recs ? `<div class="entry-recs">${e.recs}</div>` : '';
+    return `<div class="card"><div class="entry-date">${ds}</div><div class="entry-body">${e.body}</div>${star}${recs}</div>`;
+  }).join('');
+}
+
+async function runNewsletter() {
+  const days = parseInt(document.getElementById('synth-range').value);
+  const cutoff = Date.now() - days * 86400000;
+  const recent = entries.filter(e => new Date(e.date).getTime() > cutoff);
+  if (!recent.length) { document.getElementById('newsletter-output').innerHTML = '<div class="empty">No entries in this range.</div>'; return; }
+  document.getElementById('newsletter-output').innerHTML = '<div class="loading">Writing your newsletter...</div>';
+
+  const donePrios = priorities.filter(p => p.done).map(p => p.text);
+  const openPrios = priorities.filter(p => !p.done).map(p => p.text);
+  const prioSummary = (donePrios.length || openPrios.length)
+    ? `\n\nWeek priorities — completed: ${donePrios.join(', ') || 'none'}. Still open: ${openPrios.join(', ') || 'none'}.` : '';
+  const entriesText = recent.map(e => {
+    const d = new Date(e.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    return `${d}: ${e.body}`;
+  }).join('\n\n');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': '', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1200,
+        system: `You are writing a weekly update newsletter on behalf of Jon, Associate Director of Experience Design at Bounteous, for his manager and leadership team. Jon is working toward Director promotion.
+
+His role: dual lead across CX Innovation Studio (strategic research/prototypes for senior Verizon leadership) and Polaris track XD lead (portal navigation, package/upgrade flows, churn reduction). Key contacts: Rachel Vann (Director XD, Verizon), Won Jong Lee (Principal XD, Velocity Enterprise AI).
+
+Write a polished, confident, first-person weekly update email. Tone: professional but not stiff — clear, direct, self-assured. Flowing prose with natural paragraph breaks, not bullet points. Include:
+
+1. A brief opening sentence setting the week's theme or headline win
+2. Key accomplishments with the "so what" and business impact baked in — not just task descriptions. Write Director-level strategic moves naturally into the narrative.
+3. Challenges and how they were navigated — obstacles as handled, not complained about
+4. Momentum heading into next week — 2-3 sentences
+
+250-350 words. Ready to copy-paste. No subject line or greeting — just the body. If there's a standout win, after a line break at the end add: Subject line suggestion: "..."`,
+        messages: [{ role: 'user', content: `Work log entries:\n\n${entriesText}${prioSummary}\n\nWrite my Friday newsletter.` }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+    document.getElementById('newsletter-output').innerHTML = `
+      <div class="newsletter-box" id="newsletter-text">${text}</div>
+      <div class="copy-row">
+        <button class="btn primary" onclick="copyNewsletter()" id="copy-nl-btn">Copy to clipboard</button>
+        <button class="btn" onclick="openMailNewsletter()">Open in mail</button>
+      </div>`;
+  } catch(err) {
+    document.getElementById('newsletter-output').innerHTML = '<div class="loading">Error — check your connection and try again.</div>';
+  }
+}
+
+function copyNewsletter() {
+  const text = document.getElementById('newsletter-text').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-nl-btn');
+    btn.textContent = 'Copied';
+    setTimeout(() => btn.textContent = 'Copy to clipboard', 2500);
+  });
+}
+
+function openMailNewsletter() {
+  const text = document.getElementById('newsletter-text').innerText;
+  window.open(`mailto:?subject=${encodeURIComponent('Weekly update')}&body=${encodeURIComponent(text)}`);
+}
+
+function openReminder() {
+  const email = document.getElementById('reminder-email').value.trim();
+  const body = encodeURIComponent('Time for your work log check-in — open the app, do a brain dump, get your priorities for the next few days.');
+  window.open(`mailto:${email}?subject=${encodeURIComponent('Work log check-in')}&body=${body}`);
+}
+
+function copyCalText() {
+  navigator.clipboard.writeText('Work log check-in — open your work log, do a brain dump, get your priorities for the next few days.').then(() => {
+    const btn = document.getElementById('copy-cal-btn');
+    btn.textContent = 'Copied';
+    setTimeout(() => btn.textContent = 'Copy text', 2500);
+  });
+}
+</script>
+</body>
+</html>
